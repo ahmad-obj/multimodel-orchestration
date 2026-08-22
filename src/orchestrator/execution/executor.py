@@ -1,4 +1,5 @@
 import asyncio
+from uuid import uuid4
 
 from orchestrator.domain.common import ExecutionStatus
 from orchestrator.domain.events import EventType, OrchestratorEvent
@@ -56,6 +57,7 @@ class TaskExecutor:
             )
             workspace = lease.path
 
+        execution_id = str(uuid4())
         request = WorkerRequest(
             job_id=assignment.job_id,
             task_id=assignment.subtask.id,
@@ -65,8 +67,16 @@ class TaskExecutor:
             read_only=assignment.subtask.read_only,
             permissions=assignment.permissions,
             relevant_artifacts=assignment.relevant_artifacts,
+            execution_id=execution_id,
         )
         async with self._semaphore(assignment.worker_id):
+            if self.attempt_repository is not None:
+                await self.attempt_repository.start(
+                    assignment.job_id,
+                    assignment.subtask.id,
+                    assignment.worker_id,
+                    execution_id,
+                )
             await self._publish(
                 OrchestratorEvent(
                     type=EventType.WORKER_STARTED,
@@ -76,6 +86,8 @@ class TaskExecutor:
                 )
             )
             result = await adapter.execute(worker, request)
+            if result.execution_id != execution_id:
+                result = result.model_copy(update={"execution_id": execution_id})
             if (
                 lease is not None
                 and result.status is ExecutionStatus.SUCCEEDED
@@ -88,6 +100,13 @@ class TaskExecutor:
                 )
                 result = result.model_copy(update={"local_commit": commit})
 
+            if self.attempt_repository is not None:
+                await self.attempt_repository.finish(
+                    execution_id,
+                    result.status,
+                    result.model_dump_json(),
+                    None,
+                )
             event_type = (
                 EventType.WORKER_COMPLETED
                 if result.status is ExecutionStatus.SUCCEEDED

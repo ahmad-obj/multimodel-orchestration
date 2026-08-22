@@ -79,7 +79,9 @@ class CodexAdapter(WorkerAdapter):
 
     async def health_check(self, worker: WorkerDescriptor) -> WorkerDescriptor:
         if worker.executable_path is None or not worker.executable_path.exists():
-            return worker.model_copy(update={"status": WorkerStatus.UNAVAILABLE, "health_reason": "missing executable"})
+            return worker.model_copy(
+                update={"status": WorkerStatus.UNAVAILABLE, "health_reason": "missing executable"}
+            )
         outcome = await self.runner.run(
             [str(worker.executable_path), "exec", "--help"],
             cwd=Path.cwd(),
@@ -88,17 +90,24 @@ class CodexAdapter(WorkerAdapter):
         required = ["--json", "--output-schema", "--output-last-message", "--sandbox"]
         text = outcome.stdout + outcome.stderr
         if outcome.returncode != 0 or any(flag not in text for flag in required):
-            return worker.model_copy(update={"status": WorkerStatus.UNAVAILABLE, "health_reason": "required exec isolation flags unsupported"})
+            return worker.model_copy(
+                update={
+                    "status": WorkerStatus.UNAVAILABLE,
+                    "health_reason": "required exec isolation flags unsupported",
+                }
+            )
         return worker.model_copy(update={"status": WorkerStatus.AVAILABLE, "health_reason": None})
 
     async def execute(self, worker: WorkerDescriptor, request: WorkerRequest) -> WorkerResult:
-        execution_id = str(uuid.uuid4())
+        execution_id = request.execution_id or str(uuid.uuid4())
         workspace = request.workspace_path or request.repo_path
         with tempfile.TemporaryDirectory(prefix="orchestrator-codex-") as tmp:
             tmp_path = Path(tmp)
             schema_path = tmp_path / "schema.json"
             final_path = tmp_path / "final.json"
-            schema_path.write_text(json.dumps(request.expected_output_schema or {"type": "object"}))
+            schema_path.write_text(
+                json.dumps(request.expected_output_schema or {"type": "object"})
+            )
             cmd = self.build_command(
                 workspace,
                 request.objective,
@@ -114,23 +123,35 @@ class CodexAdapter(WorkerAdapter):
             )
             if outcome.timed_out:
                 return WorkerResult(
-                    execution_id=execution_id, worker_id=worker.profile.id, task_id=request.task_id,
-                    status=ExecutionStatus.TIMED_OUT, summary="Codex timed out",
-                    duration_seconds=outcome.duration_seconds, errors=[outcome.stderr],
+                    execution_id=execution_id,
+                    worker_id=worker.profile.id,
+                    task_id=request.task_id,
+                    status=ExecutionStatus.TIMED_OUT,
+                    summary="Codex timed out",
+                    duration_seconds=outcome.duration_seconds,
+                    errors=[outcome.stderr],
                 )
             if outcome.returncode != 0:
                 return WorkerResult(
-                    execution_id=execution_id, worker_id=worker.profile.id, task_id=request.task_id,
-                    status=ExecutionStatus.FAILED, summary="Codex failed",
-                    duration_seconds=outcome.duration_seconds, errors=[outcome.stderr],
+                    execution_id=execution_id,
+                    worker_id=worker.profile.id,
+                    task_id=request.task_id,
+                    status=ExecutionStatus.FAILED,
+                    summary="Codex failed",
+                    duration_seconds=outcome.duration_seconds,
+                    errors=[outcome.stderr],
                 )
             try:
                 payload = json.loads(final_path.read_text())
             except Exception as exc:
                 return WorkerResult(
-                    execution_id=execution_id, worker_id=worker.profile.id, task_id=request.task_id,
-                    status=ExecutionStatus.FAILED, summary="Codex returned invalid structured output",
-                    duration_seconds=outcome.duration_seconds, errors=[str(exc)],
+                    execution_id=execution_id,
+                    worker_id=worker.profile.id,
+                    task_id=request.task_id,
+                    status=ExecutionStatus.FAILED,
+                    summary="Codex returned invalid structured output",
+                    duration_seconds=outcome.duration_seconds,
+                    errors=[str(exc)],
                 )
             usage: dict[str, object] = {}
             for line in outcome.stdout.splitlines():

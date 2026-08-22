@@ -52,6 +52,7 @@ class WorkerRequest(BaseModel):
     relevant_artifacts: list[ArtifactRef] = Field(default_factory=list)
     expected_output_schema: dict[str, object] | None = None
     timeout_seconds: int = Field(default=1800, ge=1)
+    execution_id: str | None = None
 
     @model_validator(mode="after")
     def require_workspace_for_writes(self) -> "WorkerRequest":
