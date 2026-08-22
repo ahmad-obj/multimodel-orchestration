@@ -89,22 +89,30 @@ class OpenCodeAdapter(WorkerAdapter):
         return worker.model_copy(update={"status": WorkerStatus.AVAILABLE, "health_reason": None})
 
     def _config_content(self, request: WorkerRequest) -> str:
-        permission = {
-            "edit": "deny" if request.read_only else "allow",
-            "bash": {
-                "*": "deny",
-                "git status*": "allow",
-                "git diff*": "allow",
-                "git log*": "allow",
+        bash: dict[str, str] = {"*": "deny"}
+        for prefix in request.permissions.allowed_shell_prefixes:
+            bash[f"{prefix}*"] = "allow"
+        bash.update(
+            {
                 "git push*": "deny",
                 "sudo *": "deny",
                 "rm -rf /*": "deny",
-            },
+            }
+        )
+        permission: dict[str, object] = {
+            "*": "deny",
+            "read": "allow",
+            "glob": "allow",
+            "grep": "allow",
+            "lsp": "allow",
+            "edit": "deny" if request.read_only else "allow",
+            "bash": bash,
             "task": "allow" if request.permissions.subagents_allowed else "deny",
             "webfetch": "allow" if request.permissions.network_allowed else "deny",
+            "websearch": "allow" if request.permissions.network_allowed else "deny",
+            "external_directory": "deny",
+            "question": "deny",
         }
-        for prefix in request.permissions.allowed_shell_prefixes:
-            permission["bash"][f"{prefix}*"] = "allow"
         return json.dumps({"permission": permission})
 
     async def execute(self, worker: WorkerDescriptor, request: WorkerRequest) -> WorkerResult:
