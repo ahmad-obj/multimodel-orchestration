@@ -144,17 +144,13 @@ class LangGraphRuntime:
             self._inflight.pop(job_id, None)
 
     async def _finalize(self, job_id: str, stop_reason: str | None) -> None:
-        if stop_reason is None:
+        if stop_reason is None or stop_reason == _STOP_ALL_COMPLETED:
             return
         job = await self._jobs.get(job_id)
         if job is None:
             return
-        if stop_reason == _STOP_ALL_COMPLETED:
-            if job.status != JobStatus.COMPLETED:
-                await self._jobs.set_status(job_id, JobStatus.COMPLETED)
-        elif stop_reason.startswith(_STOP_FAILED_PREFIX):
-            if job.status != JobStatus.FAILED:
-                await self._jobs.set_status(job_id, JobStatus.FAILED)
+        if stop_reason.startswith(_STOP_FAILED_PREFIX) and job.status != JobStatus.FAILED:
+            await self._jobs.set_status(job_id, JobStatus.FAILED)
 
     def _compile(self, checkpointer: AsyncSqliteSaver) -> any:
         builder = StateGraph(GraphState)
