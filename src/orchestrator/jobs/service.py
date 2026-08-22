@@ -19,7 +19,7 @@ class JobSnapshot:
 
 
 class JobControlService:
-    RESUMABLE = {JobStatus.RUNNING, JobStatus.PAUSED}
+    RESUMABLE = {JobStatus.RUNNING}
 
     def __init__(
         self,
