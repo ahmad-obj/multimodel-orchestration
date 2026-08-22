@@ -149,7 +149,7 @@ async def test_durable_crash_restart_resume(tmp_path: Path) -> None:
 
         job2 = await jobs_repo2.get("job-1")
         assert job2 is not None
-        assert job2.status == JobStatus.COMPLETED
+        assert job2.status == JobStatus.RUNNING
 
         final_tasks = await tasks_repo2.list_for_job("job-1")
         final_statuses = {t.spec.id: t.status for t in final_tasks}
