@@ -21,15 +21,29 @@ class Assignment(BaseModel):
 
 
 class Scheduler:
-    def __init__(self, registry, scorer: WorkerScorer | None = None, cost_policy: CostPolicy | None = None):
+    def __init__(
+        self,
+        registry,
+        scorer: WorkerScorer | None = None,
+        cost_policy: CostPolicy | None = None,
+    ) -> None:
         self.registry = registry
         self.scorer = scorer or WorkerScorer()
         self.cost_policy = cost_policy or CostPolicy()
 
-    def ready_tasks(self, plan: TaskPlan, *, completed: set[str], running: set[str]) -> list[SubtaskSpec]:
+    def ready_tasks(
+        self,
+        plan: TaskPlan,
+        *,
+        completed: set[str],
+        running: set[str],
+    ) -> list[SubtaskSpec]:
         return [
-            task for task in plan.subtasks
-            if task.id not in completed and task.id not in running and set(task.dependencies) <= completed
+            task
+            for task in plan.subtasks
+            if task.id not in completed
+            and task.id not in running
+            and set(task.dependencies) <= completed
         ]
 
     def _analysis_for(self, task: SubtaskSpec) -> TaskAnalysis:
@@ -46,24 +60,74 @@ class Scheduler:
             parallelizable_hint=task.preferred_parallel_group is not None,
         )
 
-    def assign(self, job_id: str, subtask: SubtaskSpec, source_repo: Path, relevant_artifacts: list[ArtifactRef] | None = None) -> Assignment:
+    def assign(
+        self,
+        job_id: str,
+        subtask: SubtaskSpec,
+        source_repo: Path,
+        relevant_artifacts: list[ArtifactRef] | None = None,
+        *,
+        preferred_worker_id: str | None = None,
+    ) -> Assignment:
         analysis = self._analysis_for(subtask)
         filtered = eligible_workers(
-            self.registry.available(), analysis, self.cost_policy,
-            for_manager=False, requires_write=not subtask.read_only,
+            self.registry.available(),
+            analysis,
+            self.cost_policy,
+            for_manager=False,
+            requires_write=not subtask.read_only,
         )
-        scored = [(w, self.scorer.score(w.profile, analysis)) for w in filtered.eligible]
-        scored = [(w, s) for w, s in scored if s.adequate]
+        scored = [(worker, self.scorer.score(worker.profile, analysis)) for worker in filtered.eligible]
+        scored = [(worker, score) for worker, score in scored if score.adequate]
         if not scored:
             raise RuntimeError(f"no adequate worker for task {subtask.id}")
-        cost_rank = {CostClass.FREE: 0, CostClass.INCLUDED: 1, CostClass.CHEAP: 2, CostClass.PAID: 3}
-        cheapest_rank = min(cost_rank[w.profile.cost_class] for w, _ in scored)
-        cheapest = [(w, s) for w, s in scored if cost_rank[w.profile.cost_class] == cheapest_rank]
-        cheapest.sort(key=lambda item: item[1].total, reverse=True)
-        worker_id = cheapest[0][0].profile.id
-        safe_prefixes = ["git status", "git diff", "git log", "git grep", "find ", "rg ", "grep "]
+
+        if preferred_worker_id is not None:
+            preferred = [
+                (worker, score)
+                for worker, score in scored
+                if worker.profile.id == preferred_worker_id
+            ]
+            if preferred:
+                worker_id = preferred[0][0].profile.id
+            else:
+                raise RuntimeError(
+                    f"preferred worker {preferred_worker_id} is not eligible for task {subtask.id}"
+                )
+        else:
+            cost_rank = {
+                CostClass.FREE: 0,
+                CostClass.INCLUDED: 1,
+                CostClass.CHEAP: 2,
+                CostClass.PAID: 3,
+            }
+            cheapest_rank = min(cost_rank[worker.profile.cost_class] for worker, _ in scored)
+            cheapest = [
+                (worker, score)
+                for worker, score in scored
+                if cost_rank[worker.profile.cost_class] == cheapest_rank
+            ]
+            cheapest.sort(key=lambda item: item[1].total, reverse=True)
+            worker_id = cheapest[0][0].profile.id
+
+        safe_prefixes = [
+            "git status",
+            "git diff",
+            "git log",
+            "git grep",
+            "find ",
+            "rg ",
+            "grep ",
+        ]
         if not subtask.read_only:
-            safe_prefixes += ["pytest", "python -m pytest", "npm test", "pnpm test", "uv run", "ruff "]
+            safe_prefixes += [
+                "pytest",
+                "python -m pytest",
+                "npm test",
+                "pnpm test",
+                "uv run",
+                "ruff ",
+            ]
         return Assignment(
             job_id=job_id,
             subtask=subtask,
