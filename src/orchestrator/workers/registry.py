@@ -6,7 +6,9 @@ from orchestrator.workers.base import WorkerAdapter
 
 
 class WorkerRegistry:
-    def __init__(self, configured: list[WorkerProfile], adapters: Mapping[str, WorkerAdapter]) -> None:
+    def __init__(
+        self, configured: list[WorkerProfile], adapters: Mapping[str, WorkerAdapter]
+    ) -> None:
         self.configured = configured
         self.adapters = dict(adapters)
         self._descriptors: dict[str, WorkerDescriptor] = {}

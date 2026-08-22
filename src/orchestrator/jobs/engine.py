@@ -186,7 +186,9 @@ class JobEngine:
             )
             if planned.requires_human_input:
                 await self.job_repository.set_status(job_id, JobStatus.PAUSED)
-                question = planned.human_question or "Additional input is required before execution."
+                question = (
+                    planned.human_question or "Additional input is required before execution."
+                )
                 await self._event(
                     EventType.HUMAN_INPUT_REQUIRED,
                     job_id,

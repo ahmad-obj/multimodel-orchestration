@@ -44,10 +44,18 @@ async def test_gemini_execute_normalizes_fake_result(tmp_path) -> None:
     )
     fake.chmod(0o755)
     adapter = GeminiAdapter(executable=fake, model="auto")
-    worker = WorkerDescriptor(profile=profile(), executable_path=fake, status=WorkerStatus.AVAILABLE)
+    worker = WorkerDescriptor(
+        profile=profile(), executable_path=fake, status=WorkerStatus.AVAILABLE
+    )
     request = WorkerRequest(
-        job_id="j", task_id="t", objective="inspect", repo_path=tmp_path,
-        workspace_path=None, read_only=True, expected_output_schema={"type":"object"}, timeout_seconds=5,
+        job_id="j",
+        task_id="t",
+        objective="inspect",
+        repo_path=tmp_path,
+        workspace_path=None,
+        read_only=True,
+        expected_output_schema={"type": "object"},
+        timeout_seconds=5,
     )
     result = await adapter.execute(worker, request)
     assert result.status is ExecutionStatus.SUCCEEDED

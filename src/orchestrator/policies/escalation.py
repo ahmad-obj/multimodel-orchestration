@@ -121,9 +121,7 @@ class EscalationPolicy:
 
         attempted = set(attempted_worker_ids)
         candidates = self._ranked_candidates(task, registry, attempted)
-        nonpaid = [
-            item for item in candidates if self.cost_policy.permits(item[0].profile)
-        ]
+        nonpaid = [item for item in candidates if self.cost_policy.permits(item[0].profile)]
         current = registry.get(current_worker_id).profile
 
         if nonpaid:

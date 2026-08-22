@@ -5,7 +5,6 @@ from typer.testing import CliRunner
 from orchestrator.cli import app as cli
 from orchestrator.domain.jobs import JobStatus
 
-
 runner = CliRunner()
 
 
@@ -38,7 +37,13 @@ class FakeControl:
                 original_request="fix bug",
                 repo_path="/repo",
             ),
-            tasks=[SimpleNamespace(spec=SimpleNamespace(id="T1", objective="inspect"), status="running", assigned_worker_id="gemini/flash")],
+            tasks=[
+                SimpleNamespace(
+                    spec=SimpleNamespace(id="T1", objective="inspect"),
+                    status="running",
+                    assigned_worker_id="gemini/flash",
+                )
+            ],
             attempts=[],
             artifacts=[],
             decisions=[],

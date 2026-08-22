@@ -11,8 +11,7 @@ def _git(repo, *args: str) -> None:
         ["git", *args],
         cwd=repo,
         check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
 
 
@@ -29,9 +28,7 @@ def _init(repo) -> None:
 def test_python_repo_detects_manifest_language_and_test_command(tmp_path) -> None:
     repo = tmp_path / "repo"
     _init(repo)
-    (repo / "pyproject.toml").write_text(
-        '[project]\nname="fixture"\n[tool.pytest.ini_options]\n'
-    )
+    (repo / "pyproject.toml").write_text('[project]\nname="fixture"\n[tool.pytest.ini_options]\n')
     (repo / "tests").mkdir()
     (repo / "tests" / "test_x.py").write_text("def test_x(): assert True\n")
 
@@ -40,8 +37,7 @@ def test_python_repo_detects_manifest_language_and_test_command(tmp_path) -> Non
     assert "pyproject.toml" in summary.manifests
     assert "python" in summary.language_hints
     assert any(
-        command in summary.test_commands
-        for command in ["uv run pytest -q", "python -m pytest -q"]
+        command in summary.test_commands for command in ["uv run pytest -q", "python -m pytest -q"]
     )
     assert any("test_x.py" in item for item in summary.test_hints)
 

@@ -190,9 +190,7 @@ def _engine(tmp_path, recorder: Recorder, *, paused: bool = False) -> JobEngine:
 async def test_successful_job_executes_in_expected_order(tmp_path) -> None:
     recorder = Recorder()
 
-    result = await _engine(tmp_path, recorder).run_new_job(
-        tmp_path, "fix it", job_id="job-1"
-    )
+    result = await _engine(tmp_path, recorder).run_new_job(tmp_path, "fix it", job_id="job-1")
 
     assert result.status is JobStatus.COMPLETED
     assert result.final_sha == "finalsha"

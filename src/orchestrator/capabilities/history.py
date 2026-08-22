@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -12,7 +12,7 @@ class PerformanceObservation(BaseModel):
     attempt_count: int = Field(ge=1)
     duration_seconds: float = Field(ge=0)
     manager_acceptance: bool
-    recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class PerformanceSummary(BaseModel):

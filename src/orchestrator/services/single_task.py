@@ -13,7 +13,9 @@ class SingleTaskRun(BaseModel):
 
 
 class SingleTaskService:
-    def __init__(self, registry, adapters, analyzer, selector: WorkerSelector | None = None) -> None:
+    def __init__(
+        self, registry, adapters, analyzer, selector: WorkerSelector | None = None
+    ) -> None:
         self.registry = registry
         self.adapters = adapters
         self.analyzer = analyzer

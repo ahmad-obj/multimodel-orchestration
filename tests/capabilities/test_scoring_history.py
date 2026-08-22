@@ -63,6 +63,7 @@ def test_verified_history_breaks_near_equal_worker_tie() -> None:
 
     scorer = WorkerScorer(history=PerformanceHistory(rows))
 
-    assert scorer.score(_profile("worker-b"), _analysis()).total > scorer.score(
-        _profile("worker-a"), _analysis()
-    ).total
+    assert (
+        scorer.score(_profile("worker-b"), _analysis()).total
+        > scorer.score(_profile("worker-a"), _analysis()).total
+    )

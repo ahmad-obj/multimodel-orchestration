@@ -20,15 +20,11 @@ class GeminiAdapter(WorkerAdapter):
         model: str = "auto",
         runner: ProcessRunner | None = None,
     ) -> None:
-        self.executable = executable or (
-            Path(found) if (found := shutil.which("gemini")) else None
-        )
+        self.executable = executable or (Path(found) if (found := shutil.which("gemini")) else None)
         self.model = model
         self.runner = runner or ProcessRunner()
 
-    def build_command(
-        self, workspace: Path, prompt: str, *, model: str | None = None
-    ) -> list[str]:
+    def build_command(self, workspace: Path, prompt: str, *, model: str | None = None) -> list[str]:
         if self.executable is None:
             raise RuntimeError("gemini executable unavailable")
         return [

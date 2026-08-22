@@ -47,9 +47,13 @@ class PlanningService:
         chosen = selection.ranked[0]
         reason = chosen.reason
         if selection.needs_tiebreak:
-            router = self.router_factory(registry) if self.router_factory else ManagerRouter(registry)
+            router = (
+                self.router_factory(registry) if self.router_factory else ManagerRouter(registry)
+            )
             decision = await router.break_tie(analysis, selection.ranked)
-            chosen = next(item for item in selection.ranked if item.worker.profile.id == decision.worker_id)
+            chosen = next(
+                item for item in selection.ranked if item.worker.profile.id == decision.worker_id
+            )
             reason = f"AI tie-break: {decision.reason}"
         previous = None
         feedback = None
@@ -71,7 +75,11 @@ class PlanningService:
             requires_human = self.risk_policy.requires_human_input(analysis, plan)
             question = None
             if requires_human:
-                question = plan.human_question or "The plan is high-risk and low-confidence. Provide clarification before execution."
+                question = (
+                    plan.human_question
+                    or "The plan is high-risk and low-confidence. "
+                    "Provide clarification before execution."
+                )
             return PlannedJob(
                 analysis=analysis,
                 manager_worker_id=chosen.worker.profile.id,

@@ -105,9 +105,7 @@ class CodexAdapter(WorkerAdapter):
             tmp_path = Path(tmp)
             schema_path = tmp_path / "schema.json"
             final_path = tmp_path / "final.json"
-            schema_path.write_text(
-                json.dumps(request.expected_output_schema or {"type": "object"})
-            )
+            schema_path.write_text(json.dumps(request.expected_output_schema or {"type": "object"}))
             cmd = self.build_command(
                 workspace,
                 request.objective,

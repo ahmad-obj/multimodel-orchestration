@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from orchestrator.capabilities.learning import PerformanceLearningService
@@ -20,7 +20,7 @@ class PerformanceRepo:
                 confidence=0.9,
                 duration_seconds=2.0,
                 usage={},
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             ),
             StoredPerformanceOutcome(
                 execution_id="e2",
@@ -29,7 +29,7 @@ class PerformanceRepo:
                 confidence=0.7,
                 duration_seconds=3.0,
                 usage={},
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             ),
         ]
 
@@ -41,7 +41,7 @@ class Attempts:
             job_id="job-1",
             task_id="T1",
             worker_id="w1",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
         )
 
     async def list_for_job(self, _job_id):

@@ -52,15 +52,11 @@ def infer_repository_checks(repo: Path, *, final: bool) -> list[VerificationChec
             scripts = {}
         manager = _node_package_manager(repo)
         if manager and "test" in scripts:
-            checks.append(
-                VerificationCheck(kind="command", command=_node_command(manager, "test"))
-            )
+            checks.append(VerificationCheck(kind="command", command=_node_command(manager, "test")))
         if final and manager:
             for name in ("lint", "typecheck"):
                 if name in scripts:
                     checks.append(
-                        VerificationCheck(
-                            kind="command", command=_node_command(manager, name)
-                        )
+                        VerificationCheck(kind="command", command=_node_command(manager, name))
                     )
     return checks

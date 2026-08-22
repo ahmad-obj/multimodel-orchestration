@@ -15,9 +15,7 @@ class JobStore(JobRepository):
         now = _utc_now_naive()
         async with self._db.sessions() as session, session.begin():
             row = (
-                await session.execute(
-                    select(models.JobRow).where(models.JobRow.id == job_id)
-                )
+                await session.execute(select(models.JobRow).where(models.JobRow.id == job_id))
             ).scalar_one_or_none()
             if row is None:
                 raise ValueError(f"job {job_id!r} not found")

@@ -23,9 +23,7 @@ def _outcome(
 def test_under_five_samples_use_base_reliability() -> None:
     history = PerformanceHistory([_outcome("worker") for _ in range(4)])
 
-    summary = history.summarize(
-        "worker", "debugging", {"debugging"}, base_reliability=0.7
-    )
+    summary = history.summarize("worker", "debugging", {"debugging"}, base_reliability=0.7)
 
     assert summary.sample_count == 4
     assert summary.history_score == 0.7
@@ -37,9 +35,7 @@ def test_twenty_samples_use_observed_success_rate() -> None:
     ]
     history = PerformanceHistory(rows)
 
-    summary = history.summarize(
-        "worker", "debugging", {"debugging"}, base_reliability=0.5
-    )
+    summary = history.summarize("worker", "debugging", {"debugging"}, base_reliability=0.5)
 
     assert summary.sample_count == 20
     assert summary.verified_success_rate == 0.8
@@ -58,9 +54,7 @@ def test_specific_history_wins_over_unrelated_history() -> None:
     ]
     history = PerformanceHistory(rows)
 
-    summary = history.summarize(
-        "worker", "debugging", {"debugging"}, base_reliability=0.5
-    )
+    summary = history.summarize("worker", "debugging", {"debugging"}, base_reliability=0.5)
 
     assert summary.sample_count == 10
     assert summary.verified_success_rate == 1.0

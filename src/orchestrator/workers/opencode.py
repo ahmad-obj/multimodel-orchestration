@@ -25,9 +25,7 @@ class OpenCodeAdapter(WorkerAdapter):
         self.model = model
         self.runner = runner or ProcessRunner()
 
-    def build_command(
-        self, workspace: Path, prompt: str, *, model: str | None = None
-    ) -> list[str]:
+    def build_command(self, workspace: Path, prompt: str, *, model: str | None = None) -> list[str]:
         if self.executable is None:
             raise RuntimeError("opencode executable unavailable")
         return [

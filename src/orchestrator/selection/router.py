@@ -27,7 +27,8 @@ class ManagerRouter:
     def _router_worker(self):
         order = {CostClass.FREE: 0, CostClass.INCLUDED: 1}
         candidates = [
-            w for w in self.registry.available()
+            w
+            for w in self.registry.available()
             if w.profile.cost_class in order
             and not w.profile.is_paid
             and w.profile.capabilities.get("reasoning", 0) >= 0.60
@@ -35,13 +36,21 @@ class ManagerRouter:
         ]
         if not candidates:
             return None
-        return min(candidates, key=lambda w: (order[w.profile.cost_class], -w.profile.speed, -w.profile.reliability))
+        return min(
+            candidates,
+            key=lambda w: (order[w.profile.cost_class], -w.profile.speed, -w.profile.reliability),
+        )
 
-    async def break_tie(self, analysis: TaskAnalysis, candidates: list[RankedManager]) -> RouterDecision:
+    async def break_tie(
+        self, analysis: TaskAnalysis, candidates: list[RankedManager]
+    ) -> RouterDecision:
         allowed = {candidate.worker.profile.id for candidate in candidates}
         router_worker = self._router_worker()
         if router_worker is None:
-            return RouterDecision(worker_id=candidates[0].worker.profile.id, reason="no free router; deterministic top candidate")
+            return RouterDecision(
+                worker_id=candidates[0].worker.profile.id,
+                reason="no free router; deterministic top candidate",
+            )
         compact = [
             {
                 "worker_id": c.worker.profile.id,
@@ -57,7 +66,8 @@ class ManagerRouter:
             job_id="manager-router",
             task_id="router",
             objective=(
-                "Choose the best manager from ONLY the listed candidates. Return worker_id and reason.\n"
+                "Choose the best manager from ONLY the listed candidates. "
+                "Return worker_id and reason.\n"
                 f"Task analysis: {json.dumps(analysis.model_dump(mode='json'), sort_keys=True)}\n"
                 f"Candidates: {json.dumps(compact, sort_keys=True)}"
             ),

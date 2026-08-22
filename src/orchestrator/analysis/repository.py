@@ -25,8 +25,7 @@ def _git(repo: Path, *args: str) -> str:
             ["git", *args],
             cwd=repo,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=10,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -39,7 +38,9 @@ def _git(repo: Path, *args: str) -> str:
 def _test_commands(repo: Path, manifests: set[str]) -> list[str]:
     commands: list[str] = []
     if "pyproject.toml" in manifests or "pytest.ini" in manifests or "tox.ini" in manifests:
-        commands.append("uv run pytest -q" if (repo / "uv.lock").exists() else "python -m pytest -q")
+        commands.append(
+            "uv run pytest -q" if (repo / "uv.lock").exists() else "python -m pytest -q"
+        )
     elif "requirements.txt" in manifests and (repo / "tests").exists():
         commands.append("python -m pytest -q")
 

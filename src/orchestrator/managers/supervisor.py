@@ -58,7 +58,8 @@ class ManagerSupervisor:
             ) from exc
         if not self.cost_policy.permits(descriptor.profile):
             raise ManagerPolicyError(
-                f"manager requested paid worker {decision.requested_worker_id}; approval is required"
+                f"manager requested paid worker {decision.requested_worker_id}; "
+                "approval is required"
             )
 
     @staticmethod

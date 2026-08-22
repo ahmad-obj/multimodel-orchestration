@@ -104,9 +104,7 @@ async def test_manager_rejection_fails(tmp_path):
             )
         ]
     )
-    service = VerificationService(
-        ArtifactStore(tmp_path / "data"), review_provider=provider
-    )
+    service = VerificationService(ArtifactStore(tmp_path / "data"), review_provider=provider)
     workspace = tmp_path / "repo"
     workspace.mkdir()
     verified = await service.verify(
@@ -131,9 +129,7 @@ async def test_review_receives_current_workspace(tmp_path):
             )
         ]
     )
-    service = VerificationService(
-        ArtifactStore(tmp_path / "data"), review_provider=provider
-    )
+    service = VerificationService(ArtifactStore(tmp_path / "data"), review_provider=provider)
     workspace = tmp_path / "current-repo"
     workspace.mkdir()
 
@@ -169,14 +165,10 @@ async def test_required_independent_review_unavailable_fails(tmp_path):
 async def test_repository_verification_uses_inferred_final_checks(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
-    (repo / "pyproject.toml").write_text(
-        '[project]\nname="x"\ndependencies=["pytest"]\n'
-    )
+    (repo / "pyproject.toml").write_text('[project]\nname="x"\ndependencies=["pytest"]\n')
     (repo / "uv.lock").write_text("")
     runner = FakeRunner(returncode=0)
-    service = VerificationService(
-        ArtifactStore(tmp_path / "data"), process_runner=runner
-    )
+    service = VerificationService(ArtifactStore(tmp_path / "data"), process_runner=runner)
 
     verified = await service.verify_repository("job-final", repo)
 

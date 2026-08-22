@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 from orchestrator.domain.common import CostClass, ExecutionStatus, WorkerStatus
@@ -52,7 +51,9 @@ async def test_codex_execute_normalizes_fake_result(tmp_path) -> None:
     )
     fake.chmod(0o755)
     adapter = CodexAdapter(executable=fake)
-    worker = WorkerDescriptor(profile=profile(), executable_path=fake, status=WorkerStatus.AVAILABLE)
+    worker = WorkerDescriptor(
+        profile=profile(), executable_path=fake, status=WorkerStatus.AVAILABLE
+    )
     request = WorkerRequest(
         job_id="j",
         task_id="t",

@@ -91,9 +91,7 @@ def test_implementation_failure_uses_different_worker():
 
 
 def test_paid_candidate_requires_approval():
-    registry = Registry(
-        [worker("a", 0.6), worker("premium", 1, CostClass.PAID, True)]
-    )
+    registry = Registry([worker("a", 0.6), worker("premium", 1, CostClass.PAID, True)])
     action = EscalationPolicy(cost_policy=CostPolicy(allow_paid=False)).decide(
         FailureClass.INSUFFICIENT_CAPABILITY,
         ["a"],

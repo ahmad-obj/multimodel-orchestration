@@ -77,7 +77,9 @@ class Scheduler:
             for_manager=False,
             requires_write=not subtask.read_only,
         )
-        scored = [(worker, self.scorer.score(worker.profile, analysis)) for worker in filtered.eligible]
+        scored = [
+            (worker, self.scorer.score(worker.profile, analysis)) for worker in filtered.eligible
+        ]
         scored = [(worker, score) for worker, score in scored if score.adequate]
         if not scored:
             raise RuntimeError(f"no adequate worker for task {subtask.id}")

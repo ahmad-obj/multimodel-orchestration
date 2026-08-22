@@ -57,15 +57,9 @@ class PerformanceLearningService:
                         accepted = True
 
                 attempts_for_task = [
-                    item
-                    for item in attempt_cache[job_id]
-                    if item.task_id == attempt.task_id
+                    item for item in attempt_cache[job_id] if item.task_id == attempt.task_id
                 ]
-                labels = {
-                    name
-                    for name, weight in spec.capability_weights.items()
-                    if weight > 0
-                }
+                labels = {name for name, weight in spec.capability_weights.items() if weight > 0}
                 task_type = (
                     max(spec.capability_weights, key=spec.capability_weights.get)
                     if spec.capability_weights

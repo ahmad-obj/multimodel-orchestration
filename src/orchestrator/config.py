@@ -60,7 +60,9 @@ class Settings(BaseModel):
         paths = paths or AppPaths.from_environment()
         path = source or paths.config_dir / "workers.yaml"
         if not path.exists():
-            package_default = Path(__file__).resolve().parents[2] / "config" / "workers.example.yaml"
+            package_default = (
+                Path(__file__).resolve().parents[2] / "config" / "workers.example.yaml"
+            )
             path = package_default
         payload = yaml.safe_load(path.read_text()) or {}
         return cls.model_validate(payload)

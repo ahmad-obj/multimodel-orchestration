@@ -14,11 +14,15 @@ class WorkerSelection(BaseModel):
 
 
 class WorkerSelector:
-    def __init__(self, scorer: WorkerScorer | None = None, cost_policy: CostPolicy | None = None) -> None:
+    def __init__(
+        self, scorer: WorkerScorer | None = None, cost_policy: CostPolicy | None = None
+    ) -> None:
         self.scorer = scorer or WorkerScorer()
         self.cost_policy = cost_policy or CostPolicy()
 
-    def select(self, analysis: TaskAnalysis, workers: list[WorkerDescriptor], *, requires_write: bool) -> WorkerSelection:
+    def select(
+        self, analysis: TaskAnalysis, workers: list[WorkerDescriptor], *, requires_write: bool
+    ) -> WorkerSelection:
         filtered = eligible_workers(
             workers,
             analysis,

@@ -66,7 +66,7 @@ class VerificationService:
                 task_id,
                 f"verification-{index}.log",
                 (
-                    f'$ {" ".join(check.command or [])}\n\n'
+                    f"$ {' '.join(check.command or [])}\n\n"
                     f"STDOUT:\n{outcome.stdout}\nSTDERR:\n{outcome.stderr}"
                 ),
             )
@@ -118,11 +118,7 @@ class VerificationService:
                 for name in worker_result.changed_files:
                     relative = PurePosixPath(name)
                     candidate = workspace / Path(*relative.parts)
-                    if (
-                        relative.is_absolute()
-                        or ".." in relative.parts
-                        or not candidate.exists()
-                    ):
+                    if relative.is_absolute() or ".." in relative.parts or not candidate.exists():
                         missing.append(name)
                 passed = not missing
                 check_result = CheckResult(
@@ -131,7 +127,7 @@ class VerificationService:
                     summary=(
                         "claimed changed files exist"
                         if passed
-                        else f'missing claimed changed files: {", ".join(missing)}'
+                        else f"missing claimed changed files: {', '.join(missing)}"
                     ),
                 )
             else:

@@ -39,7 +39,11 @@ def eligible_workers(
             reasons.append("not manager eligible")
         if requires_write and not p.can_modify_repo:
             reasons.append("cannot modify repository")
-        if analysis.required_context_tokens and p.context_tokens and p.context_tokens < analysis.required_context_tokens:
+        if (
+            analysis.required_context_tokens
+            and p.context_tokens
+            and p.context_tokens < analysis.required_context_tokens
+        ):
             reasons.append("insufficient context capacity")
         if reasons:
             result.rejected.append(RejectedWorker(worker_id=p.id, reasons=reasons))

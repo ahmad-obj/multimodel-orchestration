@@ -40,7 +40,7 @@ def test_opencode_command_selects_model_and_json(tmp_path) -> None:
 
 async def test_opencode_execute_normalizes_jsonl(tmp_path) -> None:
     fake = tmp_path / "opencode"
-    payload = json.dumps({"summary":"ok","confidence":0.75,"structured_output":{"k":"v"}})
+    payload = json.dumps({"summary": "ok", "confidence": 0.75, "structured_output": {"k": "v"}})
     fake.write_text(
         "#!/usr/bin/env python3\n"
         "import json\n"
@@ -49,10 +49,18 @@ async def test_opencode_execute_normalizes_jsonl(tmp_path) -> None:
     )
     fake.chmod(0o755)
     adapter = OpenCodeAdapter(fake, "deepseek/deepseek-chat")
-    worker = WorkerDescriptor(profile=profile(), executable_path=fake, status=WorkerStatus.AVAILABLE)
+    worker = WorkerDescriptor(
+        profile=profile(), executable_path=fake, status=WorkerStatus.AVAILABLE
+    )
     request = WorkerRequest(
-        job_id="j", task_id="t", objective="inspect", repo_path=tmp_path,
-        workspace_path=None, read_only=True, expected_output_schema={"type":"object"}, timeout_seconds=5,
+        job_id="j",
+        task_id="t",
+        objective="inspect",
+        repo_path=tmp_path,
+        workspace_path=None,
+        read_only=True,
+        expected_output_schema={"type": "object"},
+        timeout_seconds=5,
     )
     result = await adapter.execute(worker, request)
     assert result.status is ExecutionStatus.SUCCEEDED

@@ -91,9 +91,7 @@ async def test_paid_reassignment_request_is_rejected(tmp_path):
         "reason": "x",
         "requested_worker_id": "paid",
     }
-    registry = Registry(
-        [worker("manager"), worker("paid", True)], Adapter(payload)
-    )
+    registry = Registry([worker("manager"), worker("paid", True)], Adapter(payload))
     with pytest.raises(ManagerPolicyError, match="paid"):
         await ManagerSupervisor(registry).review_cycle(
             "manager", plan(), {"objective": "g"}, tmp_path, completed_task_ids=set()

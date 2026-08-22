@@ -17,7 +17,7 @@ class ArtifactStore:
         prefix = "artifact://"
         if not ref.uri.startswith(prefix):
             raise ValueError("invalid artifact URI")
-        relative = PurePosixPath(ref.uri[len(prefix):])
+        relative = PurePosixPath(ref.uri[len(prefix) :])
         if relative.is_absolute() or ".." in relative.parts or len(relative.parts) < 3:
             raise ValueError("invalid artifact URI")
         path = self.root / "artifacts" / Path(*relative.parts)

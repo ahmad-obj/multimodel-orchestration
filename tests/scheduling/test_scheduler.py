@@ -23,9 +23,7 @@ def task(id, dependencies=(), weights=None):
 
 
 def plan(*tasks):
-    return TaskPlan(
-        goal="g", confidence=0.9, subtasks=list(tasks), final_expected_outputs=["done"]
-    )
+    return TaskPlan(goal="g", confidence=0.9, subtasks=list(tasks), final_expected_outputs=["done"])
 
 
 def d(worker_id, cost, cap, reliability=0.8, speed=0.8, paid=False):
@@ -41,9 +39,7 @@ def d(worker_id, cost, cap, reliability=0.8, speed=0.8, paid=False):
         tools={"filesystem"},
         is_paid=paid,
     )
-    return WorkerDescriptor(
-        profile=p, executable_path=Path("/fake"), status=WorkerStatus.AVAILABLE
-    )
+    return WorkerDescriptor(profile=p, executable_path=Path("/fake"), status=WorkerStatus.AVAILABLE)
 
 
 class Registry:
@@ -56,15 +52,13 @@ class Registry:
 
 def test_ready_tasks_respects_dependencies():
     p = plan(task("T1"), task("T2"), task("T3", ["T1", "T2"]))
-    scheduler = Scheduler(
-        registry=Registry([]), scorer=WorkerScorer(), cost_policy=CostPolicy()
-    )
+    scheduler = Scheduler(registry=Registry([]), scorer=WorkerScorer(), cost_policy=CostPolicy())
+    assert [item.id for item in scheduler.ready_tasks(p, completed=set(), running=set())] == [
+        "T1",
+        "T2",
+    ]
     assert [
-        item.id for item in scheduler.ready_tasks(p, completed=set(), running=set())
-    ] == ["T1", "T2"]
-    assert [
-        item.id
-        for item in scheduler.ready_tasks(p, completed={"T1", "T2"}, running=set())
+        item.id for item in scheduler.ready_tasks(p, completed={"T1", "T2"}, running=set())
     ] == ["T3"]
 
 

@@ -35,10 +35,13 @@ class WorkerScorer:
         history_score: float | None = None,
     ) -> SuitabilityScore:
         total_weight = sum(analysis.capability_weights.values())
-        capability = sum(
-            profile.capabilities.get(name, 0.0) * weight
-            for name, weight in analysis.capability_weights.items()
-        ) / total_weight
+        capability = (
+            sum(
+                profile.capabilities.get(name, 0.0) * weight
+                for name, weight in analysis.capability_weights.items()
+            )
+            / total_weight
+        )
         adequate = all(
             weight < 0.75 or profile.capabilities.get(name, 0.0) >= 0.55
             for name, weight in analysis.capability_weights.items()

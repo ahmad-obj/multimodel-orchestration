@@ -41,3 +41,6 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/orchestrator/runtime/langgraph.py" = ["E402"]
+"src/orchestrator/cli/app.py" = ["B008"]
+"src/orchestrator/workspace/*.py" = ["ASYNC240"]
+"tests/**" = ["ASYNC240", "B017"]

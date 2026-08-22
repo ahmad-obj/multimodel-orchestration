@@ -12,7 +12,9 @@ class GitCommandError(RuntimeError):
         self.returncode = returncode
         self.stdout = stdout
         self.stderr = stderr
-        super().__init__(f"git command failed ({returncode}): {' '.join(command)}\n{stderr.strip()}")
+        super().__init__(
+            f"git command failed ({returncode}): {' '.join(command)}\n{stderr.strip()}"
+        )
 
 
 class GitCommandResult(BaseModel):

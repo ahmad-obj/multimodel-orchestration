@@ -29,14 +29,32 @@ class PlanValidator:
                 duplicates.add(task_id)
             seen.add(task_id)
         for task_id in sorted(duplicates):
-            errors.append(PlanIssue(code="duplicate_task_id", task_id=task_id, message="task ID appears more than once"))
+            errors.append(
+                PlanIssue(
+                    code="duplicate_task_id",
+                    task_id=task_id,
+                    message="task ID appears more than once",
+                )
+            )
         id_set = set(ids)
         for task in plan.subtasks:
             for dep in task.dependencies:
                 if dep not in id_set:
-                    errors.append(PlanIssue(code="missing_dependency", task_id=task.id, message=f"missing dependency {dep}"))
+                    errors.append(
+                        PlanIssue(
+                            code="missing_dependency",
+                            task_id=task.id,
+                            message=f"missing dependency {dep}",
+                        )
+                    )
             if not task.read_only and not {"filesystem", "git"}.issubset(task.required_tools):
-                errors.append(PlanIssue(code="invalid_modification_requirements", task_id=task.id, message="modifying tasks require filesystem and git tools"))
+                errors.append(
+                    PlanIssue(
+                        code="invalid_modification_requirements",
+                        task_id=task.id,
+                        message="modifying tasks require filesystem and git tools",
+                    )
+                )
 
         by_group: dict[str, list] = defaultdict(list)
         for task in plan.subtasks:
@@ -49,12 +67,24 @@ class PlanValidator:
             for i, left in enumerate(modifying):
                 for right in modifying[i + 1 :]:
                     if not left.write_paths or not right.write_paths:
-                        errors.append(PlanIssue(code="conflicting_parallel_writes", task_id=left.id, message=f"parallel group {group} has unknown write scope"))
+                        errors.append(
+                            PlanIssue(
+                                code="conflicting_parallel_writes",
+                                task_id=left.id,
+                                message=f"parallel group {group} has unknown write scope",
+                            )
+                        )
                         continue
                     left_paths = {str(PurePosixPath(p)) for p in left.write_paths}
                     right_paths = {str(PurePosixPath(p)) for p in right.write_paths}
                     if left_paths & right_paths:
-                        errors.append(PlanIssue(code="conflicting_parallel_writes", task_id=left.id, message=f"parallel group {group} overlaps write paths"))
+                        errors.append(
+                            PlanIssue(
+                                code="conflicting_parallel_writes",
+                                task_id=left.id,
+                                message=f"parallel group {group} overlaps write paths",
+                            )
+                        )
 
         if not duplicates:
             indegree = {task_id: 0 for task_id in ids}
@@ -74,7 +104,9 @@ class PlanValidator:
                     if indegree[nxt] == 0:
                         q.append(nxt)
             if visited != len(ids):
-                errors.append(PlanIssue(code="cycle", message="task dependency graph contains a cycle"))
+                errors.append(
+                    PlanIssue(code="cycle", message="task dependency graph contains a cycle")
+                )
         if errors:
             raise PlanValidationError(errors)
         return plan
@@ -89,8 +121,10 @@ class PlanValidator:
         q = deque([task_id for task_id, degree in indegree.items() if degree == 0])
         order: list[str] = []
         while q:
-            current = q.popleft(); order.append(current)
+            current = q.popleft()
+            order.append(current)
             for nxt in edges[current]:
                 indegree[nxt] -= 1
-                if indegree[nxt] == 0: q.append(nxt)
+                if indegree[nxt] == 0:
+                    q.append(nxt)
         return order

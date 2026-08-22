@@ -93,16 +93,14 @@ class StructuredReviewProvider:
             job_id=str(context.get("job_id") or "verification-review"),
             task_id=kind,
             objective=(
-                "Review the supplied implementation evidence. Return a structured acceptance "
-                "decision only. Do not modify the repository, spawn workers, or use network tools.\n\n"
-                + json.dumps(context, sort_keys=True, default=str)
+                "Review the supplied implementation evidence. Return a structured "
+                "acceptance decision only. Do not modify the repository, spawn workers, "
+                "or use network tools.\n\n" + json.dumps(context, sort_keys=True, default=str)
             ),
             repo_path=repo_path,
             workspace_path=repo_path,
             read_only=True,
             permissions=WorkerPermissions(network_allowed=False, subagents_allowed=False),
         )
-        _result, decision = await execute_structured(
-            adapter, reviewer, request, ReviewDecision
-        )
+        _result, decision = await execute_structured(adapter, reviewer, request, ReviewDecision)
         return decision
