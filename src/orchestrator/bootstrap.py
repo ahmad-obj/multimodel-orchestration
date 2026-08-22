@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from pathlib import Path
 
 from orchestrator.analysis.task_analyzer import TaskAnalyzer
 from orchestrator.artifacts.store import ArtifactStore
@@ -14,6 +13,7 @@ from orchestrator.execution.failures import FailureClassifier
 from orchestrator.execution.outcomes import TaskOutcomeProcessor
 from orchestrator.integration.service import IntegrationService
 from orchestrator.jobs.engine import JobEngine
+from orchestrator.jobs.service import JobControlService
 from orchestrator.observability.events import EventBus
 from orchestrator.persistence.db import Database
 from orchestrator.persistence.job_store import JobStore
@@ -64,6 +64,7 @@ class OrchestratorApplication:
         event_bus: EventBus,
         runtime: LangGraphRuntime,
         engine: JobEngine,
+        control: JobControlService,
     ) -> None:
         self.paths = paths
         self.database = database
@@ -79,6 +80,7 @@ class OrchestratorApplication:
         self.event_bus = event_bus
         self.runtime = runtime
         self.engine = engine
+        self.control = control
 
     async def close(self) -> None:
         await self.database.dispose()
@@ -202,6 +204,17 @@ async def build_application(
         event_bus=event_bus,
         event_repository=events,
     )
+    control = JobControlService(
+        jobs=jobs,
+        tasks=tasks,
+        attempts=attempts,
+        artifacts=artifacts,
+        decisions=decisions,
+        verifications=verifications,
+        events=events,
+        engine=engine,
+        runtime=runtime,
+    )
 
     return OrchestratorApplication(
         paths=paths,
@@ -218,4 +231,5 @@ async def build_application(
         event_bus=event_bus,
         runtime=runtime,
         engine=engine,
+        control=control,
     )
