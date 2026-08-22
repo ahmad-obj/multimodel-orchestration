@@ -14,7 +14,7 @@ class StructuredReviewProvider:
         self,
         registry,
         *,
-        repo_path: Path,
+        repo_path: Path | None,
         manager_worker_id: str | None = None,
         job_repository=None,
         cost_policy: CostPolicy | None = None,
@@ -69,6 +69,14 @@ class StructuredReviewProvider:
         candidates = self._independent_candidates(implementer_worker_id)
         return candidates[0] if candidates else None
 
+    def _repo_for(self, context: dict[str, object]) -> Path:
+        workspace = context.get("workspace")
+        if isinstance(workspace, str) and workspace:
+            return Path(workspace)
+        if self.repo_path is not None:
+            return self.repo_path
+        return Path.cwd()
+
     async def review(
         self,
         *,
@@ -80,6 +88,7 @@ class StructuredReviewProvider:
         if reviewer is None:
             return None
         adapter = self.registry.adapters[reviewer.profile.harness]
+        repo_path = self._repo_for(context)
         request = WorkerRequest(
             job_id=str(context.get("job_id") or "verification-review"),
             task_id=kind,
@@ -88,8 +97,8 @@ class StructuredReviewProvider:
                 "decision only. Do not modify the repository, spawn workers, or use network tools.\n\n"
                 + json.dumps(context, sort_keys=True, default=str)
             ),
-            repo_path=self.repo_path,
-            workspace_path=self.repo_path,
+            repo_path=repo_path,
+            workspace_path=repo_path,
             read_only=True,
             permissions=WorkerPermissions(network_allowed=False, subagents_allowed=False),
         )
