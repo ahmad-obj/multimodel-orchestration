@@ -7,9 +7,9 @@ from orchestrator.workers.codex import CodexAdapter
 
 def profile() -> WorkerProfile:
     return WorkerProfile(
-        id="codex/default",
+        id="codex/gpt-5.4",
         harness="codex",
-        model="default",
+        model="gpt-5.4",
         capabilities={"coding": 0.95},
         reliability=0.9,
         speed=0.6,
@@ -22,7 +22,7 @@ def profile() -> WorkerProfile:
     )
 
 
-def test_codex_command_uses_structured_exec(tmp_path) -> None:
+def test_codex_command_uses_structured_exec_and_selected_model(tmp_path) -> None:
     adapter = CodexAdapter(executable=Path("/usr/bin/codex"))
     cmd = adapter.build_command(
         tmp_path,
@@ -30,6 +30,7 @@ def test_codex_command_uses_structured_exec(tmp_path) -> None:
         tmp_path / "schema.json",
         tmp_path / "final.json",
         read_only=True,
+        model="gpt-5.4",
     )
     assert cmd[:2] == ["/usr/bin/codex", "exec"]
     assert "--json" in cmd
@@ -38,6 +39,8 @@ def test_codex_command_uses_structured_exec(tmp_path) -> None:
     assert "read-only" in cmd
     assert "features.multi_agent=false" in cmd
     assert "features.multi_agent_v2=false" in cmd
+    model_index = cmd.index("--model")
+    assert cmd[model_index + 1] == "gpt-5.4"
 
 
 async def test_codex_execute_normalizes_fake_result(tmp_path) -> None:
