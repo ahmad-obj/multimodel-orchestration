@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from orchestrator.domain.events import EventType
 from orchestrator.domain.jobs import JobStatus
 from orchestrator.domain.tasks import (
     SubtaskSpec,
@@ -16,6 +17,7 @@ from orchestrator.jobs.engine import JobEngine
 class Recorder:
     def __init__(self) -> None:
         self.calls: list[str] = []
+        self.events = []
         self.status = JobStatus.CREATED
 
 
@@ -24,6 +26,7 @@ class FakeEventBus:
         self.recorder = recorder
 
     async def publish(self, event) -> None:
+        self.recorder.events.append(event)
         self.recorder.calls.append(event.type.value)
 
 
@@ -178,7 +181,7 @@ def _engine(tmp_path, recorder: Recorder, *, paused: bool = False) -> JobEngine:
         event_bus=FakeEventBus(recorder),
         summarizer=lambda path: (
             recorder.calls.append("summarize")
-            or SimpleNamespace(root=path, head_sha="base")
+            or SimpleNamespace(root=path, head_sha="base", branch="feature")
         ),
     )
 
@@ -216,6 +219,20 @@ async def test_successful_job_executes_in_expected_order(tmp_path) -> None:
         "job.status:completed",
         "job_completed",
     ]
+
+
+@pytest.mark.asyncio
+async def test_job_created_event_persists_original_repository_snapshot(tmp_path) -> None:
+    recorder = Recorder()
+
+    await _engine(tmp_path, recorder).run_new_job(tmp_path, "fix it", job_id="job-1")
+
+    event = next(item for item in recorder.events if item.type is EventType.JOB_CREATED)
+    assert event.payload == {
+        "repo_path": str(tmp_path),
+        "base_sha": "base",
+        "branch": "feature",
+    }
 
 
 @pytest.mark.asyncio
