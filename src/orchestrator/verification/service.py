@@ -141,6 +141,8 @@ class VerificationService:
                     else await self.review_provider.review(
                         kind=check.kind,
                         context={
+                            "job_id": job_id,
+                            "task_id": subtask.id,
                             "objective": subtask.objective,
                             "constraints": subtask.context_requirements,
                             "worker_summary": worker_result.summary,
