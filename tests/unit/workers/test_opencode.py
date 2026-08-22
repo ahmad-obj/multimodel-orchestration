@@ -2,7 +2,12 @@ import json
 from pathlib import Path
 
 from orchestrator.domain.common import CostClass, ExecutionStatus, WorkerStatus
-from orchestrator.domain.workers import WorkerDescriptor, WorkerProfile, WorkerRequest
+from orchestrator.domain.workers import (
+    WorkerDescriptor,
+    WorkerPermissions,
+    WorkerProfile,
+    WorkerRequest,
+)
 from orchestrator.workers.opencode import OpenCodeAdapter
 
 
@@ -23,6 +28,24 @@ def profile() -> WorkerProfile:
     )
 
 
+def request(tmp_path) -> WorkerRequest:
+    return WorkerRequest(
+        job_id="j",
+        task_id="t",
+        objective="inspect",
+        repo_path=tmp_path,
+        workspace_path=None,
+        read_only=True,
+        permissions=WorkerPermissions(
+            network_allowed=False,
+            subagents_allowed=False,
+            allowed_shell_prefixes=["git status"],
+        ),
+        expected_output_schema={"type": "object"},
+        timeout_seconds=5,
+    )
+
+
 def test_opencode_command_selects_model_and_json(tmp_path) -> None:
     adapter = OpenCodeAdapter(Path("/usr/bin/opencode"), "deepseek/deepseek-chat")
     assert adapter.build_command(tmp_path, "inspect", model="deepseek/deepseek-chat") == [
@@ -38,9 +61,26 @@ def test_opencode_command_selects_model_and_json(tmp_path) -> None:
     ]
 
 
+def test_opencode_config_denies_network_subagents_and_external_paths(tmp_path) -> None:
+    adapter = OpenCodeAdapter(Path("/usr/bin/opencode"), "deepseek/deepseek-chat")
+    config = json.loads(adapter._config_content(request(tmp_path)))
+    permission = config["permission"]
+
+    assert permission["edit"] == "deny"
+    assert permission["task"] == "deny"
+    assert permission["webfetch"] == "deny"
+    assert permission["websearch"] == "deny"
+    assert permission["external_directory"] == "deny"
+    assert permission["bash"]["*"] == "deny"
+    assert permission["bash"]["git status*"] == "allow"
+    assert permission["bash"]["git push*"] == "deny"
+
+
 async def test_opencode_execute_normalizes_jsonl(tmp_path) -> None:
     fake = tmp_path / "opencode"
-    payload = json.dumps({"summary": "ok", "confidence": 0.75, "structured_output": {"k": "v"}})
+    payload = json.dumps(
+        {"summary": "ok", "confidence": 0.75, "structured_output": {"k": "v"}}
+    )
     fake.write_text(
         "#!/usr/bin/env python3\n"
         "import json\n"
@@ -52,17 +92,7 @@ async def test_opencode_execute_normalizes_jsonl(tmp_path) -> None:
     worker = WorkerDescriptor(
         profile=profile(), executable_path=fake, status=WorkerStatus.AVAILABLE
     )
-    request = WorkerRequest(
-        job_id="j",
-        task_id="t",
-        objective="inspect",
-        repo_path=tmp_path,
-        workspace_path=None,
-        read_only=True,
-        expected_output_schema={"type": "object"},
-        timeout_seconds=5,
-    )
-    result = await adapter.execute(worker, request)
+    result = await adapter.execute(worker, request(tmp_path))
     assert result.status is ExecutionStatus.SUCCEEDED
     assert result.summary == "ok"
     assert result.structured_output == {"k": "v"}
