@@ -35,9 +35,24 @@ async def test_git_repository_and_worktree_lifecycle(tmp_path):
 
     assert len(sha) == 40
     assert (await git.head_sha(worktree)) == sha
+    assert await git.changed_files(worktree, base) == ["result.txt"]
     assert await git.status_porcelain(repo) == ""
     await git.remove_worktree(repo, worktree)
     assert not worktree.exists()
+
+
+@pytest.mark.asyncio
+async def test_changed_files_are_derived_from_git_history(tmp_path):
+    repo = tmp_path / "repo"
+    await init_repo(repo)
+    git = GitClient()
+    base = await git.head_sha(repo)
+    (repo / "alpha.py").write_text("a = 1\n")
+    (repo / "nested").mkdir()
+    (repo / "nested" / "beta.py").write_text("b = 2\n")
+    await git.commit_all(repo, "add files")
+
+    assert await git.changed_files(repo, base) == ["alpha.py", "nested/beta.py"]
 
 
 @pytest.mark.asyncio
