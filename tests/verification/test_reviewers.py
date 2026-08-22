@@ -4,8 +4,8 @@ from types import SimpleNamespace
 import pytest
 
 from orchestrator.domain.common import CostClass, ExecutionStatus, WorkerStatus
-from orchestrator.domain.workers import WorkerDescriptor, WorkerProfile
 from orchestrator.domain.results import WorkerResult
+from orchestrator.domain.workers import WorkerDescriptor, WorkerProfile
 from orchestrator.verification.reviewers import StructuredReviewProvider
 
 
@@ -128,3 +128,19 @@ async def test_manager_review_resolves_manager_from_job_repository(tmp_path):
 
     assert decision is not None and decision.accepted
     assert adapter.calls[0][0] == "manager"
+
+
+@pytest.mark.asyncio
+async def test_review_uses_current_workspace_without_static_repo_path(tmp_path):
+    adapter = Adapter()
+    registry = Registry([worker("implementer"), worker("reviewer")], adapter)
+    provider = StructuredReviewProvider(registry, repo_path=None)
+
+    decision = await provider.review(
+        kind="independent_review",
+        context={"workspace": str(tmp_path), "objective": "review this"},
+        implementer_worker_id="implementer",
+    )
+
+    assert decision is not None and decision.accepted
+    assert adapter.calls[0][1].repo_path == tmp_path
