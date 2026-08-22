@@ -1,0 +1,40 @@
+workers:
+  - id: codex/default
+    harness: codex
+    model: default
+    capabilities: {coding: 0.98, debugging: 0.97, architecture: 0.90, repo_navigation: 0.92, testing: 0.93, reasoning: 0.94, large_context: 0.82, research: 0.62, simple_tasks: 0.88}
+    reliability: 0.93
+    speed: 0.62
+    cost_class: included
+    parallel_capacity: 1
+    context_tokens: null
+    tools: [filesystem, shell, git]
+    can_manage: true
+    can_modify_repo: true
+    is_paid: false
+  - id: gemini/flash
+    harness: gemini
+    model: flash
+    capabilities: {coding: 0.74, debugging: 0.69, architecture: 0.70, repo_navigation: 0.92, testing: 0.73, reasoning: 0.74, large_context: 0.94, research: 0.90, simple_tasks: 0.96}
+    reliability: 0.84
+    speed: 0.96
+    cost_class: free
+    parallel_capacity: 4
+    context_tokens: null
+    tools: [filesystem, shell, git]
+    can_manage: true
+    can_modify_repo: true
+    is_paid: false
+  - id: opencode/deepseek/deepseek-chat
+    harness: opencode
+    model: deepseek/deepseek-chat
+    capabilities: {coding: 0.82, debugging: 0.79, architecture: 0.72, repo_navigation: 0.82, testing: 0.79, reasoning: 0.81, large_context: 0.76, research: 0.67, simple_tasks: 0.90}
+    reliability: 0.80
+    speed: 0.82
+    cost_class: free
+    parallel_capacity: 3
+    context_tokens: null
+    tools: [filesystem, shell, git]
+    can_manage: true
+    can_modify_repo: true
+    is_paid: false
