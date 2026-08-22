@@ -1,10 +1,11 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from orchestrator.domain.common import CostClass, ExecutionStatus, WorkerStatus
-from orchestrator.domain.results import WorkerResult
 from orchestrator.domain.workers import WorkerDescriptor, WorkerProfile
+from orchestrator.domain.results import WorkerResult
 from orchestrator.verification.reviewers import StructuredReviewProvider
 
 
@@ -39,6 +40,12 @@ class Registry:
 
     def get(self, worker_id):
         return next(item for item in self.workers if item.profile.id == worker_id)
+
+
+class Jobs:
+    async def get(self, job_id):
+        assert job_id == "job-1"
+        return SimpleNamespace(manager_worker_id="manager")
 
 
 def worker(worker_id: str, *, paid: bool = False, reasoning: float = 0.8):
@@ -98,3 +105,26 @@ async def test_independent_review_does_not_fall_back_to_paid_worker(tmp_path):
 
     assert decision is None
     assert adapter.calls == []
+
+
+@pytest.mark.asyncio
+async def test_manager_review_resolves_manager_from_job_repository(tmp_path):
+    adapter = Adapter()
+    registry = Registry(
+        [worker("implementer"), worker("manager", reasoning=0.7)],
+        adapter,
+    )
+    provider = StructuredReviewProvider(
+        registry,
+        repo_path=tmp_path,
+        job_repository=Jobs(),
+    )
+
+    decision = await provider.review(
+        kind="manager_review",
+        context={"job_id": "job-1", "objective": "review this"},
+        implementer_worker_id="implementer",
+    )
+
+    assert decision is not None and decision.accepted
+    assert adapter.calls[0][0] == "manager"
