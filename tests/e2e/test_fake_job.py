@@ -195,8 +195,11 @@ async def test_full_fake_worker_job_reaches_verified_integration(tmp_path):
         assert snapshot.tasks[0].status is TaskStatus.COMPLETED
         assert snapshot.tasks[0].assigned_worker_id == "fake/default"
         assert len(snapshot.attempts) == 1
-        assert any(item.decision_type == "worker_selected" for item in snapshot.decisions) or True
         assert any(event.type.value == "task_accepted" for event in snapshot.events)
+
+        performance = await application.performance.list_for_worker("fake/default")
+        assert len(performance) == 1
+        assert performance[0].status is ExecutionStatus.SUCCEEDED
         assert adapter.executed == ["analysis", "decompose", "T1", "manager_review"]
     finally:
         await application.close()
