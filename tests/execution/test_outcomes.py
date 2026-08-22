@@ -150,6 +150,7 @@ async def test_verified_success_is_accepted_and_recorded():
     assert outcome.disposition is OutcomeDisposition.ACCEPTED
     assert tasks.statuses[-1] == ("job-1", "T1", TaskStatus.COMPLETED)
     assert [event.type for event in events.events] == [EventType.TASK_ACCEPTED]
+    assert events.events[0].payload["execution_id"] == "exec-1"
     assert performance.results == [result()]
 
 
@@ -157,6 +158,7 @@ async def test_verified_success_is_accepted_and_recorded():
 async def test_verification_failure_retries_without_accepting():
     tasks = FakeTasks()
     events = FakeEvents()
+    performance = FakePerformance()
     processor = TaskOutcomeProcessor(
         registry=SimpleNamespace(),
         verification_service=FakeVerificationService(False),
@@ -171,6 +173,7 @@ async def test_verification_failure_retries_without_accepting():
         attempt_repository=FakeAttempts(),
         task_repository=tasks,
         event_bus=events,
+        performance_repository=performance,
         check_factory=lambda _task, _workspace: [],
     )
 
@@ -180,7 +183,9 @@ async def test_verification_failure_retries_without_accepting():
     assert tasks.assignments[-1] == ("job-1", "T1", "w1")
     assert tasks.statuses[-1] == ("job-1", "T1", TaskStatus.PENDING)
     assert EventType.TASK_ACCEPTED not in [event.type for event in events.events]
-    assert EventType.TASK_REJECTED in [event.type for event in events.events]
+    rejected = next(event for event in events.events if event.type is EventType.TASK_REJECTED)
+    assert rejected.payload["execution_id"] == "exec-1"
+    assert performance.results == [result()]
 
 
 @pytest.mark.asyncio
@@ -189,6 +194,7 @@ async def test_paid_only_escalation_pauses_job_for_approval():
     jobs = FakeJobs()
     events = FakeEvents()
     decisions = FakeDecisions()
+    performance = FakePerformance()
     processor = TaskOutcomeProcessor(
         registry=SimpleNamespace(),
         verification_service=FakeVerificationService(False),
@@ -204,13 +210,15 @@ async def test_paid_only_escalation_pauses_job_for_approval():
         task_repository=tasks,
         job_repository=jobs,
         decision_repository=decisions,
+        performance_repository=performance,
         event_bus=events,
         check_factory=lambda _task, _workspace: [],
     )
 
+    failed = result(ExecutionStatus.FAILED)
     outcome = await processor.process(
         assignment(),
-        result(ExecutionStatus.FAILED),
+        failed,
         Path("/workspace"),
     )
 
@@ -221,3 +229,4 @@ async def test_paid_only_escalation_pauses_job_for_approval():
     assert tasks.statuses[-1] == ("job-1", "T1", TaskStatus.PENDING)
     assert decisions.items[-1][2] == "paid_escalation_approval_request"
     assert events.events[-1].type is EventType.APPROVAL_REQUIRED
+    assert performance.results == [failed]
