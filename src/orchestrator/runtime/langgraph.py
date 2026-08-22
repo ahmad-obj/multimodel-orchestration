@@ -182,7 +182,11 @@ class LangGraphRuntime:
         stored = await self._tasks.list_for_job(job_id)
         stored_by_id = {item.spec.id: item for item in stored}
         completed = {t.spec.id for t in stored if t.status is TaskStatus.COMPLETED}
-        running = {t.spec.id for t in stored if t.status is TaskStatus.RUNNING}
+        running = {
+            t.spec.id
+            for t in stored
+            if t.status in {TaskStatus.READY, TaskStatus.RUNNING}
+        }
         plan = _reconstructed_plan(job, stored)
         ready = self._scheduler.ready_tasks(plan, completed=completed, running=running)
         for subtask in ready:
