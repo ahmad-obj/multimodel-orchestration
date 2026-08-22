@@ -184,12 +184,19 @@ class LangGraphRuntime:
         if stop:
             return {"stop_reason": stop}
         stored = await self._tasks.list_for_job(job_id)
+        stored_by_id = {item.spec.id: item for item in stored}
         completed = {t.spec.id for t in stored if t.status is TaskStatus.COMPLETED}
         running = {t.spec.id for t in stored if t.status is TaskStatus.RUNNING}
         plan = _reconstructed_plan(job, stored)
         ready = self._scheduler.ready_tasks(plan, completed=completed, running=running)
         for subtask in ready:
-            assignment = self._scheduler.assign(job_id, subtask, Path(job.repo_path))
+            preferred = stored_by_id[subtask.id].assigned_worker_id
+            assignment = self._scheduler.assign(
+                job_id,
+                subtask,
+                Path(job.repo_path),
+                preferred_worker_id=preferred,
+            )
             await self._tasks.set_assignment(job_id, subtask.id, assignment.worker_id)
             await self._tasks.set_status(job_id, subtask.id, TaskStatus.READY)
         return {"cycle": state["cycle"] + 1}
