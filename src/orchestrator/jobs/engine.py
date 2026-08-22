@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from orchestrator.analysis.repository import summarize_repository
 from orchestrator.domain.events import EventType, OrchestratorEvent
 from orchestrator.domain.jobs import JobStatus
+from orchestrator.domain.tasks import TaskPlan
 
 
 class JobRunResult(BaseModel):
@@ -33,6 +34,7 @@ class JobEngine:
         integration,
         final_verifier,
         event_bus,
+        event_repository=None,
         summarizer=summarize_repository,
     ) -> None:
         self.registry = registry
@@ -45,6 +47,7 @@ class JobEngine:
         self.integration = integration
         self.final_verifier = final_verifier
         self.event_bus = event_bus
+        self.event_repository = event_repository or getattr(event_bus, "repository", None)
         self.summarizer = summarizer
 
     async def _event(self, event_type: EventType, job_id: str, **payload: object) -> None:
@@ -56,6 +59,81 @@ class JobEngine:
         for worker in self.registry.all():
             await self.worker_repository.upsert_descriptor(worker)
             await self.worker_repository.upsert_profile(worker.profile)
+
+    async def _repository_snapshot(self, job_id: str) -> dict[str, object]:
+        if self.event_repository is None:
+            raise RuntimeError("job resume requires persisted event repository")
+        events = await self.event_repository.list_for_job(job_id)
+        for event in events:
+            if event.type is EventType.JOB_CREATED:
+                base_sha = event.payload.get("base_sha")
+                if isinstance(base_sha, str) and base_sha:
+                    return event.payload
+        raise RuntimeError(f"job {job_id} has no persisted repository snapshot")
+
+    @staticmethod
+    def _plan_from_tasks(job, tasks) -> TaskPlan:
+        return TaskPlan(
+            goal=job.original_request,
+            confidence=1.0,
+            subtasks=[item.spec for item in tasks],
+            final_expected_outputs=[],
+        )
+
+    async def _finish_execution(
+        self,
+        *,
+        job_id: str,
+        plan: TaskPlan,
+        source_repo: Path,
+        base_sha: str,
+        manager_worker_id: str | None,
+    ) -> JobRunResult:
+        persisted = await self.job_repository.get(job_id)
+        if persisted is None:
+            raise ValueError(f"job {job_id!r} not found")
+        if persisted.status in {
+            JobStatus.PAUSED,
+            JobStatus.WAITING_FOR_APPROVAL,
+            JobStatus.CANCELLED,
+            JobStatus.FAILED,
+        }:
+            return JobRunResult(
+                job_id=job_id,
+                status=persisted.status,
+                manager_worker_id=manager_worker_id,
+            )
+
+        commits = await self.accepted_commits.for_job(job_id)
+        await self._event(EventType.INTEGRATION_STARTED, job_id, commit_count=len(commits))
+        integrated = await self.integration.integrate(
+            job_id=job_id,
+            source_repo=source_repo,
+            base_sha=base_sha,
+            plan=plan,
+            accepted_commits=commits,
+        )
+        await self._event(
+            EventType.INTEGRATION_COMPLETED,
+            job_id,
+            status=integrated.status,
+            head_sha=integrated.head_sha,
+        )
+        if integrated.status != "succeeded":
+            raise RuntimeError(f"integration ended with status {integrated.status}")
+        workspace = self.integration.workspace_for(job_id)
+        verification = await self.final_verifier.verify_repository(job_id, workspace)
+        if not verification.passed:
+            raise RuntimeError("final verification failed")
+
+        await self.job_repository.set_status(job_id, JobStatus.COMPLETED)
+        await self._event(EventType.JOB_COMPLETED, job_id, final_sha=integrated.head_sha)
+        return JobRunResult(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            manager_worker_id=manager_worker_id,
+            final_sha=integrated.head_sha,
+        )
 
     async def run_new_job(
         self,
@@ -74,7 +152,13 @@ class JobEngine:
             str(summary.root),
             status=JobStatus.CREATED,
         )
-        await self._event(EventType.JOB_CREATED, job_id)
+        await self._event(
+            EventType.JOB_CREATED,
+            job_id,
+            repo_path=str(summary.root),
+            base_sha=summary.head_sha,
+            branch=getattr(summary, "branch", None),
+        )
         try:
             await self.job_repository.set_status(job_id, JobStatus.PLANNING)
             await self._event(EventType.ANALYSIS_STARTED, job_id)
@@ -118,49 +202,41 @@ class JobEngine:
             await self.task_repository.replace_plan(job_id, planned.plan)
             await self.job_repository.set_status(job_id, JobStatus.RUNNING)
             await self.runtime.run(job_id)
-
-            persisted = await self.job_repository.get(job_id)
-            if persisted is not None and persisted.status in {
-                JobStatus.PAUSED,
-                JobStatus.WAITING_FOR_APPROVAL,
-                JobStatus.CANCELLED,
-                JobStatus.FAILED,
-            }:
-                return JobRunResult(
-                    job_id=job_id,
-                    status=persisted.status,
-                    manager_worker_id=planned.manager_worker_id,
-                )
-
-            commits = await self.accepted_commits.for_job(job_id)
-            await self._event(EventType.INTEGRATION_STARTED, job_id, commit_count=len(commits))
-            integrated = await self.integration.integrate(
+            return await self._finish_execution(
                 job_id=job_id,
+                plan=planned.plan,
                 source_repo=summary.root,
                 base_sha=summary.head_sha,
-                plan=planned.plan,
-                accepted_commits=commits,
-            )
-            await self._event(
-                EventType.INTEGRATION_COMPLETED,
-                job_id,
-                status=integrated.status,
-                head_sha=integrated.head_sha,
-            )
-            if integrated.status != "succeeded":
-                raise RuntimeError(f"integration ended with status {integrated.status}")
-            workspace = self.integration.workspace_for(job_id)
-            verification = await self.final_verifier.verify_repository(job_id, workspace)
-            if not verification.passed:
-                raise RuntimeError("final verification failed")
-
-            await self.job_repository.set_status(job_id, JobStatus.COMPLETED)
-            await self._event(EventType.JOB_COMPLETED, job_id, final_sha=integrated.head_sha)
-            return JobRunResult(
-                job_id=job_id,
-                status=JobStatus.COMPLETED,
                 manager_worker_id=planned.manager_worker_id,
-                final_sha=integrated.head_sha,
+            )
+        except Exception as exc:
+            await self.job_repository.set_status(job_id, JobStatus.FAILED)
+            await self._event(EventType.JOB_FAILED, job_id, error=str(exc))
+            raise
+
+    async def resume_job(self, job_id: str) -> JobRunResult:
+        job = await self.job_repository.get(job_id)
+        if job is None:
+            raise ValueError(f"job {job_id!r} not found")
+        if job.status is not JobStatus.RUNNING:
+            raise ValueError(f"job {job_id!r} is not resumable from status {job.status.value}")
+        tasks = await self.task_repository.list_for_job(job_id)
+        if not tasks:
+            raise ValueError(f"job {job_id!r} has no persisted task plan")
+        snapshot = await self._repository_snapshot(job_id)
+        base_sha = snapshot["base_sha"]
+        if not isinstance(base_sha, str):
+            raise RuntimeError("persisted repository base_sha is invalid")
+        await self.registry.refresh()
+        await self._persist_workers()
+        try:
+            await self.runtime.resume(job_id)
+            return await self._finish_execution(
+                job_id=job_id,
+                plan=self._plan_from_tasks(job, tasks),
+                source_repo=Path(job.repo_path),
+                base_sha=base_sha,
+                manager_worker_id=job.manager_worker_id,
             )
         except Exception as exc:
             await self.job_repository.set_status(job_id, JobStatus.FAILED)
