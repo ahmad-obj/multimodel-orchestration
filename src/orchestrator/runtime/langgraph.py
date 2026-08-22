@@ -56,6 +56,10 @@ def _initial_state(job_id: str) -> GraphState:
     }
 
 
+def _resume_starts_new_cycle(snapshot) -> bool:
+    return snapshot.created_at is None or not tuple(snapshot.next)
+
+
 _TERMINAL_JOB_STATUSES = frozenset(
     {JobStatus.CANCELLED, JobStatus.PAUSED, JobStatus.WAITING_FOR_APPROVAL}
 )
@@ -131,7 +135,7 @@ class LangGraphRuntime:
                     await graph.ainvoke(_initial_state(job_id), config=config)
                 else:
                     snapshot = await graph.aget_state(config)
-                    if snapshot.created_at is None:
+                    if _resume_starts_new_cycle(snapshot):
                         await graph.ainvoke(_initial_state(job_id), config=config)
                     else:
                         await graph.ainvoke(None, config=config)
