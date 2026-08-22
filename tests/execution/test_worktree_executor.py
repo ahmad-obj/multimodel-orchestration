@@ -32,7 +32,7 @@ class ModifyingAdapter:
             task_id=request.task_id,
             status=ExecutionStatus.SUCCEEDED,
             summary="done",
-            changed_files=["result.txt"],
+            changed_files=[],
             confidence=0.9,
         )
 
@@ -92,6 +92,7 @@ async def test_modifying_assignment_uses_worktree_and_commits(tmp_path):
 
     assert not (repo / "result.txt").exists()
     assert result.local_commit is not None
+    assert result.changed_files == ["result.txt"]
     lease = manager.lease_for("job-1", "T1", profile.id)
     assert lease is not None
     assert (lease.path / "result.txt").read_text() == "done\n"
