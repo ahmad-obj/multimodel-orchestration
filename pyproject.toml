@@ -31,6 +31,9 @@ packages = ["src/orchestrator"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+  "real_harness: opt-in tests that invoke installed Codex/Gemini/OpenCode harnesses",
+]
 
 [tool.ruff]
 line-length = 100
