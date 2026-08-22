@@ -16,11 +16,13 @@ class StructuredReviewProvider:
         *,
         repo_path: Path,
         manager_worker_id: str | None = None,
+        job_repository=None,
         cost_policy: CostPolicy | None = None,
     ) -> None:
         self.registry = registry
         self.repo_path = repo_path
         self.manager_worker_id = manager_worker_id
+        self.job_repository = job_repository
         self.cost_policy = cost_policy or CostPolicy()
 
     def _independent_candidates(self, implementer_worker_id: str):
@@ -40,12 +42,30 @@ class StructuredReviewProvider:
         candidates.sort(key=lambda item: item[0], reverse=True)
         return [descriptor for _score, descriptor in candidates]
 
-    def _select(self, kind: str, implementer_worker_id: str):
-        if kind == "manager_review" and self.manager_worker_id is not None:
-            manager = self.registry.get(self.manager_worker_id)
-            if self.cost_policy.permits(manager.profile):
-                return manager
+    async def _manager_id_for(self, context: dict[str, object]) -> str | None:
+        if self.manager_worker_id is not None:
+            return self.manager_worker_id
+        if self.job_repository is None:
             return None
+        job_id = context.get("job_id")
+        if not isinstance(job_id, str) or not job_id:
+            return None
+        job = await self.job_repository.get(job_id)
+        return None if job is None else job.manager_worker_id
+
+    async def _select(
+        self,
+        kind: str,
+        implementer_worker_id: str,
+        context: dict[str, object],
+    ):
+        if kind == "manager_review":
+            manager_id = await self._manager_id_for(context)
+            if manager_id is not None:
+                manager = self.registry.get(manager_id)
+                if self.cost_policy.permits(manager.profile):
+                    return manager
+                return None
         candidates = self._independent_candidates(implementer_worker_id)
         return candidates[0] if candidates else None
 
@@ -56,12 +76,12 @@ class StructuredReviewProvider:
         context: dict[str, object],
         implementer_worker_id: str,
     ) -> ReviewDecision | None:
-        reviewer = self._select(kind, implementer_worker_id)
+        reviewer = await self._select(kind, implementer_worker_id, context)
         if reviewer is None:
             return None
         adapter = self.registry.adapters[reviewer.profile.harness]
         request = WorkerRequest(
-            job_id="verification-review",
+            job_id=str(context.get("job_id") or "verification-review"),
             task_id=kind,
             objective=(
                 "Review the supplied implementation evidence. Return a structured acceptance "
