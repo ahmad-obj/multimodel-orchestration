@@ -55,6 +55,13 @@ class GitClient:
         result = await self._run(["git", "status", "--porcelain"], repo)
         return result.stdout.strip()
 
+    async def changed_files(self, repo: Path, base_sha: str) -> list[str]:
+        result = await self._run(
+            ["git", "diff", "--name-only", "--diff-filter=ACMRTUXB", base_sha, "HEAD"],
+            repo,
+        )
+        return sorted({line.strip() for line in result.stdout.splitlines() if line.strip()})
+
     async def create_branch(self, repo: Path, branch: str, start_point: str) -> None:
         await self._run(["git", "branch", branch, start_point], repo)
 
