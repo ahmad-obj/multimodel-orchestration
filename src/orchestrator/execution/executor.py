@@ -106,6 +106,9 @@ class TaskExecutor:
                     f"orchestrator: complete {assignment.subtask.id} with {assignment.worker_id}",
                 )
                 result = result.model_copy(update={"local_commit": commit})
+            if lease is not None and result.status is ExecutionStatus.SUCCEEDED:
+                changed_files = await self.git_client.changed_files(lease.path, lease.base_sha)
+                result = result.model_copy(update={"changed_files": changed_files})
 
             event_type = (
                 EventType.WORKER_COMPLETED
