@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+from orchestrator.capabilities.history import PerformanceHistory
 from orchestrator.domain.common import CostClass
 from orchestrator.domain.tasks import TaskAnalysis
 from orchestrator.domain.workers import WorkerProfile
@@ -17,9 +18,22 @@ class SuitabilityScore(BaseModel):
 
 
 class WorkerScorer:
-    COST = {CostClass.FREE: 1.0, CostClass.INCLUDED: 0.85, CostClass.CHEAP: 0.55, CostClass.PAID: 0.0}
+    COST = {
+        CostClass.FREE: 1.0,
+        CostClass.INCLUDED: 0.85,
+        CostClass.CHEAP: 0.55,
+        CostClass.PAID: 0.0,
+    }
 
-    def score(self, profile: WorkerProfile, analysis: TaskAnalysis, history_score: float | None = None) -> SuitabilityScore:
+    def __init__(self, history: PerformanceHistory | None = None) -> None:
+        self.history = history
+
+    def score(
+        self,
+        profile: WorkerProfile,
+        analysis: TaskAnalysis,
+        history_score: float | None = None,
+    ) -> SuitabilityScore:
         total_weight = sum(analysis.capability_weights.values())
         capability = sum(
             profile.capabilities.get(name, 0.0) * weight
@@ -29,6 +43,14 @@ class WorkerScorer:
             weight < 0.75 or profile.capabilities.get(name, 0.0) >= 0.55
             for name, weight in analysis.capability_weights.items()
         )
+        if history_score is None and self.history is not None:
+            labels = {name for name, weight in analysis.capability_weights.items() if weight > 0}
+            history_score = self.history.summarize(
+                profile.id,
+                analysis.task_type,
+                labels,
+                base_reliability=profile.reliability,
+            ).history_score
         history = profile.reliability if history_score is None else history_score
         cost = self.COST[profile.cost_class]
         total = (
