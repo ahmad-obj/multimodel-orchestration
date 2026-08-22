@@ -4,6 +4,7 @@ from uuid import uuid4
 from orchestrator.domain.common import ExecutionStatus
 from orchestrator.domain.events import EventType, OrchestratorEvent
 from orchestrator.domain.workers import WorkerRequest
+from orchestrator.execution.outcomes import OutcomeDisposition
 from orchestrator.scheduling.scheduler import Assignment
 
 
@@ -19,6 +20,7 @@ class TaskExecutor:
         event_bus=None,
         worktree_manager=None,
         git_client=None,
+        outcome_processor=None,
     ) -> None:
         self.registry = registry
         self.artifact_store = artifact_store
@@ -28,7 +30,12 @@ class TaskExecutor:
         self.event_bus = event_bus
         self.worktree_manager = worktree_manager
         self.git_client = git_client
+        self.outcome_processor = outcome_processor
         self._semaphores: dict[str, asyncio.Semaphore] = {}
+
+    @property
+    def manages_task_outcomes(self) -> bool:
+        return self.outcome_processor is not None
 
     def _semaphore(self, worker_id: str) -> asyncio.Semaphore:
         if worker_id not in self._semaphores:
@@ -100,13 +107,6 @@ class TaskExecutor:
                 )
                 result = result.model_copy(update={"local_commit": commit})
 
-            if self.attempt_repository is not None:
-                await self.attempt_repository.finish(
-                    execution_id,
-                    result.status,
-                    result.model_dump_json(),
-                    None,
-                )
             event_type = (
                 EventType.WORKER_COMPLETED
                 if result.status is ExecutionStatus.SUCCEEDED
@@ -121,6 +121,25 @@ class TaskExecutor:
                     payload={"confidence": result.confidence, "status": result.status.value},
                 )
             )
+
+            outcome = None
+            try:
+                if self.outcome_processor is not None:
+                    outcome = await self.outcome_processor.process(
+                        assignment,
+                        result,
+                        workspace,
+                    )
+            finally:
+                if self.attempt_repository is not None:
+                    failure_class = None if outcome is None else outcome.failure_class
+                    await self.attempt_repository.finish(
+                        execution_id,
+                        result.status,
+                        result.model_dump_json(),
+                        failure_class,
+                    )
+
             if self.cost_repository is not None and result.usage:
                 await self.cost_repository.record(
                     assignment.job_id,
@@ -128,7 +147,15 @@ class TaskExecutor:
                     assignment.worker_id,
                     result.model_dump_json(),
                 )
+
+            if outcome is not None and outcome.disposition in {
+                OutcomeDisposition.RETRY,
+                OutcomeDisposition.REASSIGNED,
+                OutcomeDisposition.WAITING_FOR_APPROVAL,
+            }:
+                return None
             return result
 
     async def execute_many(self, assignments: list[Assignment]):
-        return list(await asyncio.gather(*(self.execute_assignment(a) for a in assignments)))
+        results = await asyncio.gather(*(self.execute_assignment(a) for a in assignments))
+        return [result for result in results if result is not None]
