@@ -143,6 +143,7 @@ class VerificationService:
                         context={
                             "job_id": job_id,
                             "task_id": subtask.id,
+                            "workspace": str(workspace),
                             "objective": subtask.objective,
                             "constraints": subtask.context_requirements,
                             "worker_summary": worker_result.summary,
