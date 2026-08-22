@@ -31,8 +31,10 @@ class FakeRunner:
 class ReviewProvider:
     def __init__(self, decisions):
         self.decisions = list(decisions)
+        self.calls = []
 
     async def review(self, *, kind, context, implementer_worker_id):
+        self.calls.append((kind, context, implementer_worker_id))
         if not self.decisions:
             return None
         return self.decisions.pop(0)
@@ -115,6 +117,37 @@ async def test_manager_rejection_fails(tmp_path):
         [VerificationCheck(kind="manager_review")],
     )
     assert not verified.passed
+
+
+@pytest.mark.asyncio
+async def test_review_receives_current_workspace(tmp_path):
+    provider = ReviewProvider(
+        [
+            ReviewDecision(
+                accepted=True,
+                confidence=0.9,
+                reasons=["ok"],
+                required_followups=[],
+            )
+        ]
+    )
+    service = VerificationService(
+        ArtifactStore(tmp_path / "data"), review_provider=provider
+    )
+    workspace = tmp_path / "current-repo"
+    workspace.mkdir()
+
+    verified = await service.verify(
+        "job-1",
+        task(),
+        result(),
+        workspace,
+        [VerificationCheck(kind="manager_review")],
+    )
+
+    assert verified.passed
+    assert provider.calls[0][1]["workspace"] == str(workspace)
+    assert provider.calls[0][1]["job_id"] == "job-1"
 
 
 @pytest.mark.asyncio
