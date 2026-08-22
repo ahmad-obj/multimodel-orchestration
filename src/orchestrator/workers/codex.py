@@ -26,11 +26,12 @@ class CodexAdapter(WorkerAdapter):
         final_path: Path,
         *,
         read_only: bool,
+        model: str | None = None,
     ) -> list[str]:
         if self.executable is None:
             raise RuntimeError("codex executable unavailable")
         sandbox = "read-only" if read_only else "workspace-write"
-        return [
+        command = [
             str(self.executable),
             "exec",
             "--ephemeral",
@@ -50,10 +51,11 @@ class CodexAdapter(WorkerAdapter):
             'web_search="disabled"',
             "-c",
             "sandbox_workspace_write.network_access=false",
-            "-C",
-            str(workspace),
-            prompt,
         ]
+        if model and model not in {"default", "auto"}:
+            command += ["--model", model]
+        command += ["-C", str(workspace), prompt]
+        return command
 
     async def discover(self) -> list[WorkerDescriptor]:
         if self.executable is None:
@@ -87,7 +89,13 @@ class CodexAdapter(WorkerAdapter):
             cwd=Path.cwd(),
             timeout_seconds=10,
         )
-        required = ["--json", "--output-schema", "--output-last-message", "--sandbox"]
+        required = [
+            "--json",
+            "--output-schema",
+            "--output-last-message",
+            "--sandbox",
+            "--model",
+        ]
         text = outcome.stdout + outcome.stderr
         if outcome.returncode != 0 or any(flag not in text for flag in required):
             return worker.model_copy(
@@ -112,6 +120,7 @@ class CodexAdapter(WorkerAdapter):
                 schema_path,
                 final_path,
                 read_only=request.read_only,
+                model=worker.profile.model,
             )
             outcome = await self.runner.run(
                 cmd,
