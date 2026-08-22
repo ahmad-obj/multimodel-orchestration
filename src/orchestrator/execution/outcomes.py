@@ -102,6 +102,8 @@ class TaskOutcomeProcessor:
 
     async def process(self, assignment, result: WorkerResult, workspace: Path) -> TaskOutcome:
         verification: VerificationResult | None = None
+        if self.performance_repository is not None:
+            await self.performance_repository.record_outcome(result)
 
         if result.status is ExecutionStatus.SUCCEEDED:
             checks = self.check_factory(assignment.subtask, workspace)
@@ -124,11 +126,12 @@ class TaskOutcomeProcessor:
                         job_id=assignment.job_id,
                         task_id=assignment.subtask.id,
                         worker_id=result.worker_id,
-                        payload={"confidence": result.confidence},
+                        payload={
+                            "confidence": result.confidence,
+                            "execution_id": result.execution_id,
+                        },
                     )
                 )
-                if self.performance_repository is not None:
-                    await self.performance_repository.record_outcome(result)
                 return TaskOutcome(
                     disposition=OutcomeDisposition.ACCEPTED,
                     verification=verification,
@@ -146,7 +149,10 @@ class TaskOutcomeProcessor:
                 job_id=assignment.job_id,
                 task_id=assignment.subtask.id,
                 worker_id=result.worker_id,
-                payload={"failure_class": failure.value},
+                payload={
+                    "failure_class": failure.value,
+                    "execution_id": result.execution_id,
+                },
             )
         )
         attempted = await self._attempted_workers(
