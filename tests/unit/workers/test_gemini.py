@@ -64,6 +64,7 @@ def test_gemini_command_is_headless_json_with_policy(tmp_path) -> None:
         "flash",
         "--approval-mode",
         "plan",
+        "--skip-trust",
         "--policy",
         str(policy_path),
     ]
@@ -75,7 +76,10 @@ def test_gemini_policy_fails_closed_and_allows_only_requested_actions(tmp_path) 
 
     assert 'toolName = "*"' in policy
     assert 'decision = "deny"' in policy
-    assert 'toolName = ["glob", "grep_search", "list_directory", "read_file", "read_many_files"]' in policy
+    assert (
+        'toolName = ["glob", "grep_search", "list_directory", "read_file", "read_many_files"]'
+        in policy
+    )
     assert 'toolName = ["replace", "write_file"]' in policy
     assert 'commandPrefix = "git status"' in policy
     assert 'commandPrefix = "uv run pytest"' in policy

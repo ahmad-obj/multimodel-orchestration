@@ -78,9 +78,7 @@ def test_opencode_config_denies_network_subagents_and_external_paths(tmp_path) -
 
 async def test_opencode_execute_normalizes_jsonl(tmp_path) -> None:
     fake = tmp_path / "opencode"
-    payload = json.dumps(
-        {"summary": "ok", "confidence": 0.75, "structured_output": {"k": "v"}}
-    )
+    payload = json.dumps({"summary": "ok", "confidence": 0.75, "structured_output": {"k": "v"}})
     fake.write_text(
         "#!/usr/bin/env python3\n"
         "import json\n"

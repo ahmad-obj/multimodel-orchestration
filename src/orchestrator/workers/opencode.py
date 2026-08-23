@@ -154,16 +154,28 @@ class OpenCodeAdapter(WorkerAdapter):
                 event = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            event_type = event.get("type") if isinstance(event, dict) else None
-            if event_type in {"message", "result"}:
+            if not isinstance(event, dict):
+                continue
+            event_type = event.get("type")
+            if event_type == "text":
+                part = event.get("part", {})
+                content = part.get("text", "") if isinstance(part, dict) else ""
+                if content:
+                    final_text = content
+            elif event_type in {"message", "result"}:
                 content = event.get("content") or event.get("text") or event.get("response")
                 if isinstance(content, str):
                     final_text = content
-            elif isinstance(event, dict):
+            else:
                 unknown.append(event)
         try:
+            clean_text = final_text
+            if clean_text.startswith("```"):
+                lines = clean_text.splitlines()
+                lines = [ln for ln in lines if not ln.startswith("```")]
+                clean_text = "\n".join(lines)
             parsed = (
-                json.loads(final_text)
+                json.loads(clean_text)
                 if request.expected_output_schema is not None
                 else {"summary": final_text}
             )

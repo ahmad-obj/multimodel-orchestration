@@ -45,6 +45,7 @@ class GeminiAdapter(WorkerAdapter):
             model or self.model,
             "--approval-mode",
             approval_mode,
+            "--skip-trust",
         ]
         if policy_path is not None:
             command += ["--policy", str(policy_path)]
